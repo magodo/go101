@@ -18,16 +18,32 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	peers := make(chan net.Conn, 1)
+	go pair(peers)
+
 	for {
 		conn, err := l.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
-		go handleConn(conn)
+		peers <- conn
 	}
 }
 
-func handleConn(conn net.Conn) {
-	defer conn.Close()
-	io.Copy(conn, conn)
+func pair(peers chan net.Conn) {
+	for {
+		p1, p2 := <-peers, <-peers
+		go chat(p1, p2)
+	}
+}
+
+func chat(p1, p2 net.Conn) {
+	go transfer(p1, p2)
+	go transfer(p2, p1)
+}
+
+func transfer(dst, src net.Conn) {
+	io.Copy(dst, src)
+	dst.Close()
 }
